@@ -22,18 +22,18 @@
   <parent>
     <groupId>com.streamsets</groupId>
     <artifactId>streamsets-datacollector-stage-lib-parent</artifactId>
-    <version>3.23.0-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
     <relativePath>../stage-lib-parent</relativePath>
   </parent>
   <groupId>com.streamsets</groupId>
   <artifactId>streamsets-datacollector-jdbc-lib</artifactId>
-  <version>3.23.0-SNAPSHOT</version>
+  <version>4.0.0-SNAPSHOT</version>
   <description>StreamSets Data Collector JDBC Lib</description>
   <name>StreamSets Data Collector JDBC Lib</name>
 
   <properties>
-    <mssql.version>8.4.1.jre8</mssql.version>
-    <postgresql.version>42.2.18</postgresql.version>
+    <mssql.version>9.2.1.jre8</mssql.version>
+    <postgresql.version>42.2.19</postgresql.version>
   </properties>
 
   <dependencies>

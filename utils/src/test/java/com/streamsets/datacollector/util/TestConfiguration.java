@@ -221,6 +221,51 @@ public class TestConfiguration {
     Assert.assertFalse(stringWriter.toString().contains("secret\nfoo\n"));
   }
 
+  @Test
+  public void testFileRefsUsingResources() throws IOException {
+    File configDir = new File("target", UUID.randomUUID().toString());
+    Assert.assertTrue(configDir.mkdirs());
+    Configuration.setFileRefsBaseDir(configDir);
+
+    File resourcesDir = new File("target", UUID.randomUUID().toString());
+    Assert.assertTrue(resourcesDir.mkdirs());
+    Configuration.setFileRefsResourcesDir(resourcesDir);
+
+    Writer writer = new FileWriter(new File(resourcesDir, "hello.txt"));
+    IOUtils.write("secret\nfoo\n", writer);
+    writer.close();
+    Configuration conf = new Configuration();
+
+    conf.set("a", "@hello.txt@");
+    Assert.assertEquals("secret\nfoo\n", conf.get("a", null));
+
+    conf.set("aa", "${file(\"hello.txt\")}");
+    Assert.assertEquals("secret\nfoo\n", conf.get("aa", null));
+
+    conf.set("aaa", "${file('hello.txt')}");
+    Assert.assertEquals("secret\nfoo\n", conf.get("aaa", null));
+
+    writer = new FileWriter(new File(resourcesDir, "config.properties"));
+    conf.save(writer);
+    writer.close();
+
+    conf = new Configuration();
+    Reader reader = new FileReader(new File(resourcesDir, "config.properties"));
+    conf.load(reader);
+    reader.close();
+
+    Assert.assertEquals("secret\nfoo\n", conf.get("a", null));
+
+    reader = new FileReader(new File(resourcesDir, "config.properties"));
+    StringWriter stringWriter = new StringWriter();
+    IOUtils.copy(reader, stringWriter);
+    reader.close();
+    Assert.assertTrue(stringWriter.toString().contains("@hello.txt@"));
+    Assert.assertTrue(stringWriter.toString().contains("${file(\"hello.txt\")}"));
+    Assert.assertTrue(stringWriter.toString().contains("${file('hello.txt')}"));
+    Assert.assertFalse(stringWriter.toString().contains("secret\nfoo\n"));
+  }
+
   @Test(expected = RuntimeException.class)
   public void testFileRefsNotConfigured() throws IOException {
     Configuration.setFileRefsBaseDir(null);
@@ -311,6 +356,39 @@ public class TestConfiguration {
 
     Configuration conf = new Configuration();
     Reader reader = new FileReader(new File(dir, "config.properties"));
+    conf.load(reader);
+    reader.close();
+
+    Assert.assertEquals("A", conf.get("a", null));
+    Assert.assertEquals("B", conf.get("b", null));
+    Assert.assertEquals("C", conf.get("c", null));
+    Assert.assertNull(conf.get(Configuration.CONFIG_INCLUDES, null));
+  }
+
+  @Test
+  public void testIncludesUsingResourcesFolder() throws Exception {
+    File configDir = new File("target", UUID.randomUUID().toString());
+    Assert.assertTrue(configDir.mkdirs());
+    Configuration.setFileRefsBaseDir(configDir);
+
+    File resourcesDir = new File("target", UUID.randomUUID().toString());
+    Assert.assertTrue(resourcesDir.mkdirs());
+    Configuration.setFileRefsResourcesDir(resourcesDir);
+
+    Writer writer = new FileWriter(new File(configDir, "config.properties"));
+    IOUtils.write("a=A\nconfig.includes=include1.properties , ", writer);
+    writer.close();
+
+    writer = new FileWriter(new File(resourcesDir, "include1.properties"));
+    IOUtils.write("b=B\nconfig.includes=include2.properties , ", writer);
+    writer.close();
+
+    writer = new FileWriter(new File(configDir, "include2.properties"));
+    IOUtils.write("c=C\n", writer);
+    writer.close();
+
+    Configuration conf = new Configuration();
+    Reader reader = new FileReader(new File(configDir, "config.properties"));
     conf.load(reader);
     reader.close();
 
@@ -437,5 +515,61 @@ public class TestConfiguration {
     Configuration conf = new Configuration();
     conf.set("a", "${exec(\"script.sh\")}");
     conf.get("a", null);
+  }
+
+  @Test
+  public void testRefsConfigsWithBlankSpaces() throws IOException {
+    File dir = new File("target", UUID.randomUUID().toString());
+    Assert.assertTrue(dir.mkdirs());
+    Configuration.setFileRefsBaseDir(dir);
+
+    Writer writer = new FileWriter(new File(dir, "hello.txt"));
+    IOUtils.write("secret", writer);
+    writer.close();
+    Configuration conf = new Configuration();
+
+    String home = System.getenv("HOME");
+
+    conf.set("a", " @hello.txt@    ");
+    conf.set("aa", "  ${file(\"hello.txt\")}   ");
+    conf.set("aaa", "  ${file('hello.txt')} ");
+    conf.set("b", " $HOME$   ");
+    conf.set("bb", "   ${env(\"HOME\")}   ");
+    conf.set("bbb", " ${env('HOME')}     ");
+    conf.set("x", " X   ");
+    Assert.assertEquals("secret", conf.get("a", null));
+    Assert.assertEquals("secret", conf.get("aa", null));
+    Assert.assertEquals("secret", conf.get("aaa", null));
+    Assert.assertEquals(home, conf.get("b", null));
+    Assert.assertEquals(home, conf.get("bb", null));
+    Assert.assertEquals(home, conf.get("bbb", null));
+    Assert.assertEquals("X", conf.get("x", null));
+
+    Configuration uconf = conf.getUnresolvedConfiguration();
+    Assert.assertEquals("@hello.txt@", uconf.get("a", null));
+    Assert.assertEquals("${file(\"hello.txt\")}", uconf.get("aa", null));
+    Assert.assertEquals("${file('hello.txt')}", uconf.get("aaa", null));
+    Assert.assertEquals("$HOME$", uconf.get("b", null));
+    Assert.assertEquals("${env(\"HOME\")}", uconf.get("bb", null));
+    Assert.assertEquals("${env('HOME')}", uconf.get("bbb", null));
+    Assert.assertEquals("X", uconf.get("x", null));
+
+    writer = new FileWriter(new File(dir, "config.properties"));
+    conf.save(writer);
+    writer.close();
+
+    conf = new Configuration();
+    Reader reader = new FileReader(new File(dir, "config.properties"));
+    conf.load(reader);
+    reader.close();
+
+    uconf = conf.getUnresolvedConfiguration();
+    Assert.assertEquals("@hello.txt@", uconf.get("a", null));
+    Assert.assertEquals("${file(\"hello.txt\")}", uconf.get("aa", null));
+    Assert.assertEquals("${file('hello.txt')}", uconf.get("aaa", null));
+    Assert.assertEquals("$HOME$", uconf.get("b", null));
+    Assert.assertEquals("${env(\"HOME\")}", uconf.get("bb", null));
+    Assert.assertEquals("${env('HOME')}", uconf.get("bbb", null));
+    Assert.assertEquals("X", uconf.get("x", null));
   }
 }

@@ -83,3 +83,20 @@ upgrades:
       - setConfig:
           name: conf.dataFormatConfig.csvUnivocityCommentMarker
           value: ${"#"}
+  - toVersion: 18
+    actions:
+      - setConfig:
+          name: conf.responseTimeoutActionConfig.passRecord
+          value: false
+      - setConfig:
+          lookForName: conf.responseStatusActionConfigs
+          elseName: conf.responseStatusActionConfigs
+          elseValue: []
+      - iterateListConfig:
+          name: conf.responseStatusActionConfigs
+          actions:
+            - setConfig:
+                name: passRecord
+                value: false
+
+

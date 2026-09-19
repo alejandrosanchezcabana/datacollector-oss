@@ -30,6 +30,7 @@ import com.streamsets.pipeline.api.base.configurablestage.DSourceOffsetCommitter
     execution = ExecutionMode.STANDALONE,
     description = "Receives records via SDC RPC from a Data Collector pipeline that uses an SDC RPC destination",
     icon="sdcipc.png",
+    beta = true,
     onlineHelpRefUrl ="index.html?contextID=task_lxh_1w2_ct",
     upgrader = SdcIpcSourceUpgrader.class,
     recordsByRef = true,
@@ -44,6 +45,7 @@ import com.streamsets.pipeline.api.base.configurablestage.DSourceOffsetCommitter
     "configs.tlsConfigBean.trustStorePassword",
     "configs.tlsConfigBean.trustStoreAlgorithm"
 })
+@Deprecated
 @GenerateResourceBundle
 public class SdcIpcDSource extends DSourceOffsetCommitter {
 

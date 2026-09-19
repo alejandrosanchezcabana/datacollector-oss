@@ -29,9 +29,9 @@ import com.streamsets.pipeline.lib.http.Groups;
 import com.streamsets.pipeline.lib.http.oauth2.OAuth2ConfigBean;
 import com.streamsets.pipeline.lib.parser.DataParser;
 import com.streamsets.pipeline.lib.parser.DataParserFactory;
+import com.streamsets.pipeline.lib.util.ExceptionUtils;
 import com.streamsets.pipeline.lib.util.ThreadUtil;
 import com.streamsets.pipeline.stage.origin.http.HttpResponseActionConfigBean;
-import com.streamsets.pipeline.stage.origin.http.HttpStatusResponseActionConfigBean;
 import com.streamsets.pipeline.stage.origin.http.ResponseAction;
 import com.streamsets.pipeline.stage.origin.restservice.RestServiceReceiver;
 import org.apache.commons.lang.StringUtils;
@@ -42,11 +42,14 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.MultivaluedMap;
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
@@ -61,8 +64,8 @@ public abstract class HttpStageUtil {
   public static final String CONTENT_TYPE_HEADER = "Content-Type";
   public static final String DEFAULT_CONTENT_TYPE = "application/json";
 
+  // Empty constructor
   HttpStageUtil(){
-    //Empty constructor
   }
 
   public static Object getFirstHeaderIgnoreCase(String name, MultivaluedMap<String, Object> headers) {
@@ -175,7 +178,7 @@ public abstract class HttpStageUtil {
   public static List<Stage.ConfigIssue> validateStatusActionConfigs(
       List<Stage.ConfigIssue> issues,
       Stage.Context context,
-      List<HttpStatusResponseActionConfigBean> responseStatusActionConfigs,
+      List<? extends HttpResponseActionConfigBean> responseStatusActionConfigs,
       Map<Integer, HttpResponseActionConfigBean> statusToActionConfigs,
       String configName
     ) {
@@ -227,7 +230,7 @@ public abstract class HttpStageUtil {
     return issues;
   }
 
-  public static boolean applyResponseAction(
+  public static PassthroughAttributes applyResponseAction(
       HttpResponseActionConfigBean actionConf,
       boolean firstOccurence,
       Function<Void, StageException> createConfiguredErrorFunction,
@@ -243,68 +246,133 @@ public abstract class HttpStageUtil {
         backoffIntervalLinear,
         backoffIntervalExponential,
         null,
+        null,
+        false,
         null
     );
   }
 
   /**
-   * Apply an HTTP status response action, based on configuration.  Updates stateful variables by
-   * using the atomic constructs.
+   * Apply an HTTP status response action, based on configuration.
+   * Updates stateful variables by using the atomic constructs.
    *
    * @param actionConf the configuration for the action to be performed
-   * @param firstOccurence whether this is the first occurence of this status
+   * @param firstOccurrence whether this is the first occurrence of this status or timeout
    * @param createConfiguredErrorFunction a function that produces an exception as per configuration
    * @param retryCount the number of times the request has been retried (will be updated)
    * @param backoffIntervalLinear the linear backoff interval (will be updated)
-   * @param backoffIntervalExponential the expxonential backoff interval (will be updated)
+   * @param backoffIntervalExponential the exponential backoff interval (will be updated)
    * @param inputRecord the input record which led to this action (to be used when generating error records)
    * @param errorRecordMessage a message to be included in the error record, if generated
-   * @return true if any sleep (for backoffs) was uninterrupted, false if it was not
+   * @param forTimeout flag to inform whether to react to an standard HTTP status or to a timeout
+   * @param timeoutType type of timeout produced in the last request
+   * @return a PassthroughAttributes component providing information about how to proceed
    */
-  public static boolean applyResponseAction(
+  public static PassthroughAttributes applyResponseAction(
       HttpResponseActionConfigBean actionConf,
-      boolean firstOccurence,
+      boolean firstOccurrence,
       Function<Void, StageException> createConfiguredErrorFunction,
       AtomicInteger retryCount,
       AtomicLong backoffIntervalLinear,
       AtomicLong backoffIntervalExponential,
       Record inputRecord,
-      String errorRecordMessage
+      String errorRecordMessage,
+      boolean forTimeout,
+      TimeoutType timeoutType
   ) {
-    if (firstOccurence) {
+    if (firstOccurrence) {
       retryCount.set(0);
     } else {
       retryCount.incrementAndGet();
     }
-    if (actionConf.getMaxNumRetries() > 0 && retryCount.get() > actionConf.getMaxNumRetries()) {
-      throw new StageException(Errors.HTTP_19, actionConf.getMaxNumRetries());
+
+    if (actionConf.getAction().equals(ResponseAction.ERROR_RECORD) ||
+        (!actionConf.getAction().equals(ResponseAction.STAGE_ERROR) &&
+         ((actionConf.getMaxNumRetries() > 0 &&
+           retryCount.get() > actionConf.getMaxNumRetries()) ||
+          (timeoutType != null &&
+           timeoutType.equals(TimeoutType.RECORD))))) {
+        PassthroughAttributes passthroughAttributes = buildPassthroughAttributes(
+          actionConf,
+          firstOccurrence ? 0 : retryCount.get() - 1,
+          forTimeout,
+          timeoutType);
+      if (actionConf.isPassRecord() &&
+          (timeoutType == null ||
+           (timeoutType != null &&
+            !timeoutType.equals(TimeoutType.RECORD)))) {
+        // It is possible to send both to error and pass through except for batch timeout
+        passthroughAttributes.setSendToOutput(true);
+      }
+      return passthroughAttributes;
     }
 
-    boolean uninterrupted = true;
     final long backoff = actionConf.getBackoffInterval();
     switch (actionConf.getAction()) {
       case STAGE_ERROR:
         throw createConfiguredErrorFunction.apply(null);
+      case ERROR_RECORD:
+        break;
       case RETRY_IMMEDIATELY:
         break;
-      case ERROR_RECORD:
-        throw new OnRecordErrorException(inputRecord, Errors.HTTP_100, errorRecordMessage);
       case RETRY_EXPONENTIAL_BACKOFF:
       case RETRY_LINEAR_BACKOFF:
         long updatedBackoff;
         if (actionConf.getAction() == ResponseAction.RETRY_EXPONENTIAL_BACKOFF) {
-          updatedBackoff = firstOccurence ? backoff : backoffIntervalExponential.get() * 2;
+          updatedBackoff = firstOccurrence ? backoff : backoffIntervalExponential.get() * 2;
           backoffIntervalExponential.set(updatedBackoff);
         } else {
-          updatedBackoff = firstOccurence ? backoff : backoffIntervalLinear.get() + backoff;
+          updatedBackoff = firstOccurrence ? backoff : backoffIntervalLinear.get() + backoff;
           backoffIntervalLinear.set(updatedBackoff);
         }
         if (LOG.isDebugEnabled()) {
           LOG.debug("Applying backoff for {} ms", updatedBackoff);
         }
-        uninterrupted = ThreadUtil.sleep(updatedBackoff);
+        ThreadUtil.sleep(updatedBackoff);
         break;
     }
-    return uninterrupted;
+    return null;
+  }
+
+  public static TimeoutType findTimeoutType(Exception eException) {
+    Throwable throwable = SocketTimeoutException.class.isInstance(eException) ||
+                          TimeoutException.class.isInstance(eException) ||
+                          ConnectException.class.isInstance(eException)?
+                          eException :
+                          ExceptionUtils.findSpecificCause(eException, SocketTimeoutException.class);
+    if (throwable == null) {
+      return TimeoutType.NONE;
+    }
+    if (throwable.getMessage() == null) {
+      return TimeoutType.UNKNOWN;
+    }
+
+    if (throwable.getMessage().contains(TimeoutType.CONNECTION.getMessage())) {
+      return TimeoutType.CONNECTION;
+    } else if (throwable.getMessage().contains(TimeoutType.READ.getMessage())) {
+      return TimeoutType.READ;
+    } else if (throwable.getMessage().contains(TimeoutType.REQUEST.getMessage())) {
+      return TimeoutType.REQUEST;
+    } else if (throwable.getMessage().contains(TimeoutType.RECORD.getMessage())) {
+      return TimeoutType.RECORD;
+    } else {
+      return TimeoutType.UNKNOWN;
+    }
+  }
+
+  private static PassthroughAttributes buildPassthroughAttributes (
+      HttpResponseActionConfigBean actionConf,
+      int retries,
+      boolean forTimeout,
+      TimeoutType timeoutType) {
+
+    PassthroughAttributes passthroughAttributes = new PassthroughAttributes();
+    passthroughAttributes.setError(forTimeout ? Errors.HTTP_102 : Errors.HTTP_101);
+    passthroughAttributes.setStatus(actionConf.getStatusCode());
+    passthroughAttributes.setAction(actionConf.getAction());
+    passthroughAttributes.setRetries(retries);
+    passthroughAttributes.setSendToError(true);
+    passthroughAttributes.setTimeoutType(timeoutType);
+    return passthroughAttributes;
   }
 }

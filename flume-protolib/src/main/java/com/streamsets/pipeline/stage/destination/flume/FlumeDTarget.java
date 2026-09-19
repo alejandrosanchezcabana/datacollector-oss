@@ -27,12 +27,14 @@ import com.streamsets.pipeline.api.base.configurablestage.DTarget;
   label = "Flume",
   description = "Writes data to Flume Source",
   icon = "flume.png",
+  beta = true,
   upgrader = FlumeTargetUpgrader.class,
   upgraderDef = "upgrader/FlumeDTarget.yaml",
   onlineHelpRefUrl ="index.html?contextID=task_vft_g5p_yr"
 )
 @ConfigGroups(value = Groups.class)
 @GenerateResourceBundle
+@Deprecated
 public class FlumeDTarget extends DTarget {
 
   @ConfigDefBean()

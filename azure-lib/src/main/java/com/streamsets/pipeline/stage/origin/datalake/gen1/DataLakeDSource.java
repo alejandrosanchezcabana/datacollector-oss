@@ -34,6 +34,7 @@ import static com.streamsets.pipeline.config.OriginAvroSchemaSource.SOURCE;
     label = "Azure Data Lake Storage Gen1",
     description = "Reads data from Azure Data Lake Storage Gen1",
     icon = "data-lake-store-gen1.png",
+    beta = true,
     producesEvents = true,
     execution = ExecutionMode.STANDALONE,
     recordsByRef = true,
@@ -57,6 +58,7 @@ import static com.streamsets.pipeline.config.OriginAvroSchemaSource.SOURCE;
     "spoolDirConfig.dataFormatConfig.subject",
     "spoolDirConfig.dataFormatConfig.schemaId"
 })
+@Deprecated
 @GenerateResourceBundle
 public class DataLakeDSource extends DPushSource {
 

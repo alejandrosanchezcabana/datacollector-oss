@@ -41,6 +41,7 @@ import com.streamsets.pipeline.stage.origin.lib.OuterDataParserFormatConfig;
     icon="Apache-nifi-logo.png",
     execution = {ExecutionMode.STANDALONE},
     recordsByRef = true,
+    beta = true,
     upgraderDef = "upgrader/NiFiHttpServerDPushSource.yaml",
     onlineHelpRefUrl ="" //TODO
 )
@@ -57,6 +58,7 @@ import com.streamsets.pipeline.stage.origin.lib.OuterDataParserFormatConfig;
     "httpConfigs.serviceName",
     "httpConfigs.needGatewayAuth"
 })
+@Deprecated
 @GenerateResourceBundle
 public class NiFiHttpServerDPushSource extends DPushSource {
 

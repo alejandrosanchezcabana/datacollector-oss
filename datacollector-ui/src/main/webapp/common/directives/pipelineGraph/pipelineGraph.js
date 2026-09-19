@@ -923,14 +923,14 @@ angular.module('pipelineGraphDirectives', [])
         .filter(function(d) {
             return pipelineService.isBetaStage(d.stageName);
         })
-        .attr('x', consts.rectWidth - 25)
+        .attr('x', consts.rectWidth - 35)
         .attr('y', 10)
-        .attr('width', 10.5)
-        .attr('height', 19.5)
-        .attr('xlink:href', '/assets/beta.svg')
+        .attr('width', 20)
+        .attr('height', 20)
+        .attr('xlink:href', '/assets/deprecated.svg')
         .attr('class', 'graph-bootstrap-tooltip')
         .attr('data-placement', 'top')
-        .attr('title', 'This is a technology preview stage, do not use in production');
+        .attr('title', 'This stage is deprecated and may be removed in a future release.');
 
 
       // remove old nodes

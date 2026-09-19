@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 StreamSets Inc.
+ * Copyright 2021 StreamSets Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,29 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.streamsets.pipeline.stage.origin.udptokafka;
+package com.streamsets.pipeline.stage.origin.jdbc.cdc.oracle;
 
-import com.streamsets.pipeline.api.GenerateResourceBundle;
 import com.streamsets.pipeline.api.Label;
 
-@GenerateResourceBundle
-public enum Groups implements Label {
-  KAFKA("Kafka"),
-  SECURITY("Security"),
-  UDP("UDP"),
-  ADVANCED("Advanced"),
-  DATA_FORMAT("Data Format"),
-  NETFLOW_V9("NetFlow 9"),
-  ;
+public enum PseudocolumnType implements Label {
+
+  STANDARD("Standard Query"),
+  HIERARCHICAL("Hierarchical Query"),
+  SEQUENCE("Sequence"),
+  VERSION("Version Query");
 
   private final String label;
 
-  Groups(String label) {
+  PseudocolumnType(String label) {
     this.label = label;
   }
 
   @Override
   public String getLabel() {
-    return this.label;
+    return label;
   }
 }

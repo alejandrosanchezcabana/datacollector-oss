@@ -35,11 +35,13 @@ import com.streamsets.pipeline.kafka.api.KafkaOriginGroups;
   execution = {ExecutionMode.CLUSTER_YARN_STREAMING, ExecutionMode.CLUSTER_MESOS_STREAMING, ExecutionMode.STANDALONE},
   libJarsRegex = {"spark-streaming-kafka.*", "kafka_\\d+.*", "kafka-clients-\\d+.*", "metrics-core-\\d+.*"},
   icon = "kafka.png",
+  beta = true,
   recordsByRef = true,
   upgrader = KafkaSourceUpgrader.class,
   upgraderDef = "upgrader/KafkaDSource.yaml",
   onlineHelpRefUrl ="index.html?contextID=task_npx_xgf_vq"
 )
+@Deprecated
 @RawSource(rawSourcePreviewer = KafkaRawSourcePreviewer.class, mimeType = "*/*")
 @ConfigGroups(value = KafkaOriginGroups.class)
 @HideConfigs(value = {"kafkaConfigBean.dataFormatConfig.compression"})

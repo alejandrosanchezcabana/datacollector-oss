@@ -31,10 +31,12 @@ import java.util.Map;
     label = "Hive Streaming",
     description = "Writes data to Hive tables using the streaming API. Requires ORC storage format.",
     icon = "hive.png",
+    beta = true,
     privateClassLoader = true,
     upgraderDef = "upgrader/HiveDTarget.yaml",
     onlineHelpRefUrl ="index.html?contextID=task_cx3_lhh_ht"
 )
+@Deprecated
 @ConfigGroups(value = Groups.class)
 @GenerateResourceBundle
 public class HiveDTarget extends DTarget {

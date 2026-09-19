@@ -28,6 +28,7 @@ import com.streamsets.pipeline.api.base.configurablestage.DTarget;
     label = "Azure Data Lake Storage Gen1",
     description = "Writes data to Azure Data Lake Storage Gen1",
     icon = "data-lake-store-gen1.png",
+    beta = true,
     producesEvents = true,
     upgraderDef = "upgrader/DataLakeDTarget.yaml",
     onlineHelpRefUrl = "index.html?contextID=task_nx5_4t5_5hb"
@@ -41,6 +42,7 @@ import com.streamsets.pipeline.api.base.configurablestage.DTarget;
     "dataLakeConfig.hdfsConfDir",
     "dataLakeConfig.hdfsConfigs"
 })
+@Deprecated
 @GenerateResourceBundle
 public class DataLakeDTarget extends DTarget {
 

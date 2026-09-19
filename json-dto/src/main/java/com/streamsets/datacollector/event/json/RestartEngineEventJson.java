@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 StreamSets Inc.
+ * Copyright 2021 StreamSets Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,28 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.streamsets.pipeline.stage.origin.httptokafka;
+package com.streamsets.datacollector.event.json;
 
-import com.streamsets.pipeline.api.GenerateResourceBundle;
-import com.streamsets.pipeline.api.Label;
+public class RestartEngineEventJson implements EventJson {
+  private String info;
 
-@GenerateResourceBundle
-public enum Groups implements Label {
-  KAFKA("Kafka"),
-  SECURITY("Security"),
-  HTTP("HTTP"),
-  DATA_FORMAT("Data Format"),
-  TLS("TLS"),
-  ;
-
-  private final String label;
-
-  private Groups(String label) {
-    this.label = label;
+  public String getInfo() {
+    return info;
   }
 
-  @Override
-  public String getLabel() {
-    return this.label;
+  public RestartEngineEventJson setInfo(String info) {
+    this.info = info;
+    return this;
   }
 }
